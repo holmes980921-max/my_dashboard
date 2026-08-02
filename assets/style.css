@@ -1,0 +1,112 @@
+/*
+  assets/style.css
+  My Dashboard 공통 스타일 정의 파일입니다.
+  카드, 뱃지, 애니메이션, 반응형 레이아웃을 담당합니다.
+  색상 값은 utils/theme.py 에서 주입하는 CSS 변수(--card-bg 등)를 사용합니다.
+*/
+
+/* 앱 전체 배경/텍스트 색상 */
+.stApp {
+    background-color: var(--background);
+    color: var(--text-color);
+}
+
+/* ---------------------------------------------------
+   정적 정보 카드 (Dashboard 탭의 지표/최근완료/High Priority)
+   st.markdown으로 직접 그리는 카드에 사용합니다.
+--------------------------------------------------- */
+.dashboard-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 1.1rem 1.3rem;
+    margin-bottom: 0.8rem;
+    box-shadow: 0 2px 8px var(--shadow-color);
+    transition: all 0.2s ease;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px var(--shadow-color);
+}
+
+.stat-card {
+    text-align: center;
+}
+
+.stat-card .stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.stat-card .stat-label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-top: 0.2rem;
+}
+
+/* Priority 뱃지 */
+.priority-badge {
+    display: inline-block;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #FFFFFF;
+    margin-left: 0.4rem;
+}
+
+.task-title {
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.task-meta {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+/* ---------------------------------------------------
+   Todo / Completed 목록 항목 카드
+   내부에 체크박스/버튼 등 실제 위젯이 들어가야 하므로
+   st.container(border=True)를 사용하고, Streamlit이 만드는
+   래퍼 div(data-testid="stVerticalBlockBorderWrapper")에
+   카드 스타일을 입힙니다.
+--------------------------------------------------- */
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    border-radius: 16px !important;
+    border: 1px solid var(--border-color) !important;
+    box-shadow: 0 2px 8px var(--shadow-color);
+    transition: all 0.2s ease;
+    margin-bottom: 0.7rem;
+}
+
+div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px var(--shadow-color);
+}
+
+/* 버튼에도 살짝 hover 애니메이션 적용 */
+.stButton > button {
+    border-radius: 10px;
+    transition: all 0.15s ease;
+}
+
+.stButton > button:hover {
+    transform: scale(1.03);
+}
+
+/* ---------------------------------------------------
+   반응형: 화면이 좁아지면(모바일) 여백/글자 크기를 줄여
+   카드가 잘리지 않고 보기 좋게 표시되도록 합니다.
+--------------------------------------------------- */
+@media (max-width: 768px) {
+    .dashboard-card {
+        padding: 0.9rem 1rem;
+    }
+    .stat-card .stat-value {
+        font-size: 1.5rem;
+    }
+}
