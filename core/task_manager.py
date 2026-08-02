@@ -13,7 +13,14 @@ from __future__ import annotations
 from datetime import datetime, date
 from typing import Optional
 
-from config import PRIORITY_ORDER, RECENT_COMPLETED_COUNT, PRIORITY_HIGH
+from config import (
+    PRIORITY_ORDER,
+    RECENT_COMPLETED_COUNT,
+    PRIORITY_HIGH,
+    RECOMMEND_COUNT,
+    RECOMMEND_PRIORITY_SCORES,
+    RECOMMEND_PIN_BONUS,
+)
 from core.models import Task
 from utils.storage import load_tasks, save_tasks
 
@@ -121,6 +128,68 @@ def get_days_left(task: Task) -> Optional[int]:
     except ValueError:
         return None
     return (due - date.today()).days
+
+
+def _recommend_score(task: Task) -> tuple:
+    """
+    할 일 하나의 '추천 점수'와 '추천 이유'를 계산합니다.
+
+    점수 구성:
+    - 우선순위 점수: High 30 / Medium 20 / Low 10
+    - 마감일 점수: 지남 +50, 오늘 +40, 1일 전 +30, 2일 전 +20, 3일 전 +10
+    - Pin 보너스: +5
+
+    예) High 우선순위 + 오늘 마감 = 30 + 40 = 70점
+    """
+    score = RECOMMEND_PRIORITY_SCORES.get(task.priority, 0)
+    reasons = []
+
+    if task.priority == PRIORITY_HIGH:
+        reasons.append("우선순위 High")
+
+    days_left = get_days_left(task)
+    if days_left is not None:
+        if days_left < 0:
+            score += 50
+            reasons.append(f"마감 {-days_left}일 지남")
+        elif days_left == 0:
+            score += 40
+            reasons.append("오늘 마감")
+        elif days_left <= 3:
+            # D-1이면 +30, D-2면 +20, D-3이면 +10
+            score += (4 - days_left) * 10
+            reasons.append(f"마감 {days_left}일 전")
+
+    if task.pinned:
+        score += RECOMMEND_PIN_BONUS
+        reasons.append("고정된 할 일")
+
+    return score, reasons
+
+
+def get_recommended_tasks(count: int = RECOMMEND_COUNT) -> list:
+    """
+    '오늘 먼저 하면 좋은 할 일' 추천 목록을 반환합니다.
+    미완료 할 일을 점수순으로 정렬해서 상위 count개를 골라줍니다.
+
+    반환 형식: [{"task": Task, "score": 점수, "reasons": [이유 문자열들]}, ...]
+    """
+    todos = [t for t in get_all_tasks() if not t.completed]
+
+    scored = []
+    for t in todos:
+        score, reasons = _recommend_score(t)
+        scored.append({"task": t, "score": score, "reasons": reasons})
+
+    # 점수 높은 순 -> 마감일 빠른 순 -> 먼저 만든 순으로 정렬
+    scored.sort(
+        key=lambda item: (
+            -item["score"],
+            item["task"].due_date or "9999-12-31",
+            item["task"].created_at,
+        )
+    )
+    return scored[:count]
 
 
 def _sort_key(task: Task):

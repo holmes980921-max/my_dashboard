@@ -6,22 +6,10 @@ Dashboard 탭 화면을 그리는 파일입니다.
 최근 완료된 작업을 카드 형태로 보여줍니다.
 """
 
-from datetime import datetime
-
 import streamlit as st
 
-from config import PRIORITY_COLORS, PRIORITY_LABELS, DATETIME_FORMAT
-from core.task_manager import get_dashboard_stats
-
-
-def _format_datetime(iso_string) -> str:
-    """ISO 형식 문자열을 보기 좋은 날짜/시간 문자열로 변환합니다."""
-    if not iso_string:
-        return "-"
-    try:
-        return datetime.fromisoformat(iso_string).strftime(DATETIME_FORMAT)
-    except ValueError:
-        return "-"
+from components.common import format_datetime, priority_badge_html, due_badge_html
+from core.task_manager import get_dashboard_stats, get_recommended_tasks
 
 
 def _render_stat_card(label: str, value) -> None:
@@ -37,17 +25,52 @@ def _render_stat_card(label: str, value) -> None:
     )
 
 
-def _priority_badge_html(priority: str) -> str:
-    """우선순위 뱃지 HTML 조각을 만듭니다."""
-    color = PRIORITY_COLORS.get(priority, "#94A3B8")
-    label = PRIORITY_LABELS.get(priority, priority)
-    return f'<span class="priority-badge" style="background-color:{color};">{label}</span>'
+def _render_recommend_card(item: dict, rank: int) -> None:
+    """추천 할 일 카드 하나를 그립니다. (순위 메달 + 제목 + 배지 + 추천 이유)"""
+    task = item["task"]
+    rank_icons = ["🥇", "🥈", "🥉"]
+    icon = rank_icons[rank] if rank < len(rank_icons) else "⭐"
+
+    reasons = " · ".join(item["reasons"]) if item["reasons"] else "여유 있을 때 미리 해두세요"
+
+    st.markdown(
+        f"""
+        <div class="dashboard-card recommend-card">
+            <div>{icon} <span class="task-title">{task.title}</span></div>
+            <div style="margin: 0.4rem 0 0.3rem 0;">
+                {priority_badge_html(task.priority)}{due_badge_html(task)}
+            </div>
+            <div class="task-meta">💡 {reasons}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_recommendations() -> None:
+    """'오늘의 추천' 섹션을 그립니다. 마감일 + 중요도 점수 상위 3개를 보여줍니다."""
+    st.markdown("#### 🎯 오늘의 추천")
+
+    recommended = get_recommended_tasks()
+
+    if not recommended:
+        st.info("추천할 할 일이 없습니다. Todo 탭에서 새 할 일을 추가해보세요!")
+        return
+
+    cols = st.columns(len(recommended))
+    for rank, (col, item) in enumerate(zip(cols, recommended)):
+        with col:
+            _render_recommend_card(item, rank)
 
 
 def render_dashboard() -> None:
     """Dashboard 탭 전체를 그립니다."""
     stats = get_dashboard_stats()
 
+    # 오늘 뭐부터 할지 바로 보이도록 추천 섹션을 가장 위에 배치
+    _render_recommendations()
+
+    st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("#### 📊 현재 현황")
 
     # 5개의 지표 카드를 한 줄에 배치
@@ -79,7 +102,7 @@ def render_dashboard() -> None:
                     f"""
                     <div class="dashboard-card">
                         <span class="task-title">✔ {task.title}</span><br>
-                        <span class="task-meta">완료: {_format_datetime(task.completed_at)}</span>
+                        <span class="task-meta">완료: {format_datetime(task.completed_at)}</span>
                     </div>
                     """,
                     unsafe_allow_html=True,
@@ -96,7 +119,7 @@ def render_dashboard() -> None:
                     f"""
                     <div class="dashboard-card">
                         <span class="task-title">{task.title}</span>
-                        {_priority_badge_html(task.priority)}
+                        {priority_badge_html(task.priority)}{due_badge_html(task)}
                     </div>
                     """,
                     unsafe_allow_html=True,

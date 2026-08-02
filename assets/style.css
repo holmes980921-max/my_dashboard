@@ -34,6 +34,11 @@
     text-align: center;
 }
 
+/* 오늘의 추천 카드: 왼쪽에 포인트 색상 라인을 넣어 강조 */
+.recommend-card {
+    border-left: 4px solid var(--primary-color);
+}
+
 .stat-card .stat-value {
     font-size: 2rem;
     font-weight: 700;

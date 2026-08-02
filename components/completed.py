@@ -5,22 +5,10 @@ Completed 탭 화면을 그리는 파일입니다.
 완료된 할 일 목록과 완료 시각, Restore/Delete 버튼을 보여줍니다.
 """
 
-from datetime import datetime
-
 import streamlit as st
 
-from config import DATETIME_FORMAT
+from components.common import format_datetime
 from core.task_manager import get_completed_tasks, restore_task, delete_task
-
-
-def _format_datetime(iso_string) -> str:
-    """ISO 형식 문자열을 보기 좋은 날짜/시간 문자열로 변환합니다."""
-    if not iso_string:
-        return "-"
-    try:
-        return datetime.fromisoformat(iso_string).strftime(DATETIME_FORMAT)
-    except ValueError:
-        return "-"
 
 
 def render_completed() -> None:
@@ -41,7 +29,7 @@ def render_completed() -> None:
                 st.markdown(f"<span class='task-title'>✔ {task.title}</span>", unsafe_allow_html=True)
             with col_time:
                 st.markdown(
-                    f"<span class='task-meta'>완료: {_format_datetime(task.completed_at)}</span>",
+                    f"<span class='task-meta'>완료: {format_datetime(task.completed_at)}</span>",
                     unsafe_allow_html=True,
                 )
             with col_restore:

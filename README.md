@@ -6,7 +6,7 @@ JSON 파일 기반으로 데이터를 저장하며, 앱을 종료했다가 다�
 
 ## ✨ 프로젝트 소개
 
-- **Dashboard 탭**: 전체 할 일 현황(Total / Completed / Progress / High Priority / Due Today)과 최근 완료 항목을 한눈에 확인
+- **Dashboard 탭**: 🎯 오늘의 추천 TOP 3, 전체 할 일 현황(Total / Completed / Progress / High Priority / Due Today), 최근 완료 항목을 한눈에 확인
 - **Todo 탭**: 할 일 추가/검색/우선순위 변경/Pin 고정/삭제, 마감일(D-day 배지)과 메모 관리
 - **Completed 탭**: 완료된 할 일 확인, 복원(Restore), 삭제
 - **Dark / Light 테마**: 선택한 테마는 재실행 후에도 유지
@@ -43,6 +43,7 @@ my_dashboard/
 │   └── task_manager.py         # 추가/삭제/완료/복원/검색/정렬 로직
 │
 ├── components/                # 화면(UI) 렌더링
+│   ├── common.py                # 공통 UI 조각 (배지, 날짜 포맷)
 │   ├── sidebar.py               # 사이드바 (테마 선택)
 │   ├── dashboard.py             # Dashboard 탭
 │   ├── todo.py                  # Todo 탭
@@ -67,7 +68,10 @@ my_dashboard/
 ## 📌 기능 설명
 
 ### Dashboard
-- Total Tasks, Completed Tasks, Progress(%), High Priority Tasks 지표 카드
+- **🎯 오늘의 추천**: 마감일과 중요도를 점수로 계산해 "오늘 먼저 할 일" TOP 3를 자동 추천
+  - 점수 = 우선순위(High 30 / Medium 20 / Low 10) + 마감 임박도(지남 50 / 오늘 40 / 1~3일 전 30~10) + Pin 보너스(5)
+  - 각 카드에 추천 이유 표시 (예: "우선순위 High · 오늘 마감")
+- Total Tasks, Completed Tasks, Progress(%), High Priority Tasks, Due Today 지표 카드
 - 최근 완료된 할 일 5개 표시
 
 ### Todo

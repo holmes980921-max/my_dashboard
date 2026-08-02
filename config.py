@@ -54,6 +54,22 @@ DUE_COLORS = {
 }
 
 # ----------------------------
+# 오늘의 추천 (Recommendation) 설정
+# ----------------------------
+# 대시보드에 보여줄 추천 할 일 개수
+RECOMMEND_COUNT = 3
+
+# 우선순위별 기본 점수 (중요할수록 높게)
+RECOMMEND_PRIORITY_SCORES = {
+    PRIORITY_HIGH: 30,
+    PRIORITY_MEDIUM: 20,
+    PRIORITY_LOW: 10,
+}
+
+# Pin 고정된 할 일에 주는 보너스 점수
+RECOMMEND_PIN_BONUS = 5
+
+# ----------------------------
 # 테마(Theme) 설정
 # ----------------------------
 THEME_LIGHT = "light"

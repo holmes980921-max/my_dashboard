@@ -9,7 +9,8 @@ from datetime import date
 
 import streamlit as st
 
-from config import PRIORITY_ORDER, PRIORITY_LABELS, PRIORITY_MEDIUM, DUE_COLORS
+from config import PRIORITY_ORDER, PRIORITY_LABELS, PRIORITY_MEDIUM
+from components.common import due_badge_html
 from core.task_manager import (
     add_task,
     complete_task,
@@ -18,7 +19,6 @@ from core.task_manager import (
     update_priority,
     update_due_date,
     update_memo,
-    get_days_left,
     get_todo_tasks,
     get_all_tasks,
 )
@@ -82,28 +82,6 @@ def _render_progress_bar() -> None:
     st.progress(ratio, text=f"진행률 {int(ratio * 100)}% ({completed}/{total})")
 
 
-def _due_badge_html(task) -> str:
-    """
-    마감일 상태를 나타내는 배지 HTML을 만듭니다.
-    - 마감일 지남: 빨간색 "N일 지남"
-    - 오늘 마감: 앰버색 "D-DAY"
-    - 여유 있음: 회색 "D-N"
-    - 마감일 없음: 빈 문자열 (배지 표시 안 함)
-    """
-    days_left = get_days_left(task)
-    if days_left is None:
-        return ""
-
-    if days_left < 0:
-        color, label = DUE_COLORS["overdue"], f"{-days_left}일 지남"
-    elif days_left == 0:
-        color, label = DUE_COLORS["today"], "D-DAY"
-    else:
-        color, label = DUE_COLORS["upcoming"], f"D-{days_left}"
-
-    return f'<span class="priority-badge" style="background-color:{color};">📅 {label}</span>'
-
-
 def _render_edit_expander(task) -> None:
     """항목 아래 접이식 영역에서 마감일과 메모를 수정할 수 있게 합니다."""
     # 메모가 있으면 제목에 미리보기를 살짝 보여줌
@@ -160,7 +138,7 @@ def _render_task_item(task) -> None:
         memo_icon = " 🗒️" if task.memo else ""
         st.markdown(
             f"<span class='task-title'>{pin_icon}{task.title}</span>"
-            f"{memo_icon} {_due_badge_html(task)}",
+            f"{memo_icon} {due_badge_html(task)}",
             unsafe_allow_html=True,
         )
 
