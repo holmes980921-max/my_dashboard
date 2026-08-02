@@ -27,11 +27,11 @@ class Task:
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
     completed_at: Optional[str] = None
+    due_date: Optional[str] = None  # 마감일 ("YYYY-MM-DD" 형식, 없으면 None)
+    memo: str = ""                  # 상세 메모 (없으면 빈 문자열)
 
     # --- 향후 확장 예정 필드 (필요할 때 아래처럼 추가하면 됩니다) ---
-    # due_date: Optional[str] = None      # 마감일
     # category: Optional[str] = None      # 카테고리
-    # memo: Optional[str] = None           # 메모
     # is_recurring: bool = False           # 반복 작업 여부
 
     def to_dict(self) -> dict:
@@ -53,4 +53,6 @@ class Task:
             pinned=data.get("pinned", False),
             created_at=data.get("created_at", datetime.now().isoformat()),
             completed_at=data.get("completed_at"),
+            due_date=data.get("due_date"),
+            memo=data.get("memo", ""),
         )

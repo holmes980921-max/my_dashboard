@@ -10,7 +10,8 @@ core/task_manager.py
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, date
+from typing import Optional
 
 from config import PRIORITY_ORDER, RECENT_COMPLETED_COUNT, PRIORITY_HIGH
 from core.models import Task
@@ -28,10 +29,17 @@ def _persist(tasks: list) -> None:
     save_tasks([t.to_dict() for t in tasks])
 
 
-def add_task(title: str, priority: str) -> None:
-    """새 할 일을 추가합니다."""
+def add_task(
+    title: str,
+    priority: str,
+    due_date: Optional[str] = None,
+    memo: str = "",
+) -> None:
+    """새 할 일을 추가합니다. 마감일(YYYY-MM-DD)과 메모는 선택 사항입니다."""
     tasks = get_all_tasks()
-    tasks.append(Task(title=title.strip(), priority=priority))
+    tasks.append(
+        Task(title=title.strip(), priority=priority, due_date=due_date, memo=memo.strip())
+    )
     _persist(tasks)
 
 
@@ -80,15 +88,53 @@ def update_priority(task_id: str, priority: str) -> None:
     _persist(tasks)
 
 
+def update_due_date(task_id: str, due_date: Optional[str]) -> None:
+    """할 일의 마감일을 변경합니다. None을 넣으면 마감일이 제거됩니다."""
+    tasks = get_all_tasks()
+    for t in tasks:
+        if t.id == task_id:
+            t.due_date = due_date
+    _persist(tasks)
+
+
+def update_memo(task_id: str, memo: str) -> None:
+    """할 일의 메모를 변경합니다. 빈 문자열을 넣으면 메모가 제거됩니다."""
+    tasks = get_all_tasks()
+    for t in tasks:
+        if t.id == task_id:
+            t.memo = memo.strip()
+    _persist(tasks)
+
+
+def get_days_left(task: Task) -> Optional[int]:
+    """
+    마감일까지 남은 일수를 계산합니다.
+    - 양수: 아직 여유가 있음 (예: 3 -> D-3)
+    - 0: 오늘이 마감일 (D-DAY)
+    - 음수: 마감일이 지남 (예: -2 -> 2일 지남)
+    - None: 마감일이 설정되지 않음
+    """
+    if not task.due_date:
+        return None
+    try:
+        due = date.fromisoformat(task.due_date)
+    except ValueError:
+        return None
+    return (due - date.today()).days
+
+
 def _sort_key(task: Task):
     """
     Todo 목록 정렬 기준:
     1) Pin 된 항목이 먼저 오도록
     2) 그다음 우선순위(High > Medium > Low) 순서로
-    3) 마지막으로 먼저 생성된 항목이 먼저 오도록
+    3) 같은 우선순위면 마감일이 빠른 항목이 먼저 오도록 (마감일 없으면 뒤로)
+    4) 마지막으로 먼저 생성된 항목이 먼저 오도록
     """
     priority_rank = PRIORITY_ORDER.index(task.priority) if task.priority in PRIORITY_ORDER else 99
-    return (not task.pinned, priority_rank, task.created_at)
+    # 마감일이 없는 항목은 "9999-12-31"로 취급해서 항상 뒤로 보냅니다
+    due = task.due_date or "9999-12-31"
+    return (not task.pinned, priority_rank, due, task.created_at)
 
 
 def get_todo_tasks(search_keyword: str = "") -> list:
@@ -126,10 +172,17 @@ def get_dashboard_stats() -> dict:
 
     high_priority = [t for t in tasks if not t.completed and t.priority == PRIORITY_HIGH]
 
+    # 오늘이 마감이거나 이미 지난 미완료 할 일 (days_left가 0 이하)
+    due_today = [
+        t for t in tasks
+        if not t.completed and get_days_left(t) is not None and get_days_left(t) <= 0
+    ]
+
     return {
         "total": total,
         "completed": completed_count,
         "progress": progress,
         "recent_completed": recent_completed,
         "high_priority": sorted(high_priority, key=_sort_key),
+        "due_today": sorted(due_today, key=_sort_key),
     }

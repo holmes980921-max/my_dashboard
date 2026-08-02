@@ -5,15 +5,20 @@ Todo 탭 화면을 그리는 파일입니다.
 할 일 추가, 검색, 진행률 표시, 목록(체크/우선순위/Pin/삭제) 기능을 담당합니다.
 """
 
+from datetime import date
+
 import streamlit as st
 
-from config import PRIORITY_ORDER, PRIORITY_LABELS, PRIORITY_MEDIUM
+from config import PRIORITY_ORDER, PRIORITY_LABELS, PRIORITY_MEDIUM, DUE_COLORS
 from core.task_manager import (
     add_task,
     complete_task,
     delete_task,
     toggle_pin,
     update_priority,
+    update_due_date,
+    update_memo,
+    get_days_left,
     get_todo_tasks,
     get_all_tasks,
 )
@@ -42,12 +47,28 @@ def _render_add_form() -> None:
         with col_button:
             submitted = st.form_submit_button("➕ Add", use_container_width=True)
 
+        # 마감일/메모는 선택 사항이라 expander(접이식 영역) 안에 넣어서 화면을 깔끔하게 유지
+        with st.expander("📅 마감일 / 🗒️ 메모 추가 (선택)"):
+            new_due = st.date_input(
+                "마감일",
+                value=None,  # 기본값 없음 -> 선택하지 않으면 None이 반환됩니다
+                format="YYYY-MM-DD",
+                key="add_due_date",
+            )
+            new_memo = st.text_area(
+                "메모",
+                placeholder="상세 내용을 적어두세요... (선택)",
+                key="add_memo",
+            )
+
         if submitted:
             error_message = validate_new_task(new_title, get_all_tasks())
             if error_message:
                 st.warning(error_message)
             else:
-                add_task(new_title, new_priority)
+                # date 객체는 JSON에 저장할 수 없으므로 "YYYY-MM-DD" 문자열로 변환
+                due_str = new_due.isoformat() if new_due else None
+                add_task(new_title, new_priority, due_date=due_str, memo=new_memo)
                 st.rerun()
 
 
@@ -59,6 +80,66 @@ def _render_progress_bar() -> None:
     ratio = (completed / total) if total > 0 else 0
 
     st.progress(ratio, text=f"진행률 {int(ratio * 100)}% ({completed}/{total})")
+
+
+def _due_badge_html(task) -> str:
+    """
+    마감일 상태를 나타내는 배지 HTML을 만듭니다.
+    - 마감일 지남: 빨간색 "N일 지남"
+    - 오늘 마감: 앰버색 "D-DAY"
+    - 여유 있음: 회색 "D-N"
+    - 마감일 없음: 빈 문자열 (배지 표시 안 함)
+    """
+    days_left = get_days_left(task)
+    if days_left is None:
+        return ""
+
+    if days_left < 0:
+        color, label = DUE_COLORS["overdue"], f"{-days_left}일 지남"
+    elif days_left == 0:
+        color, label = DUE_COLORS["today"], "D-DAY"
+    else:
+        color, label = DUE_COLORS["upcoming"], f"D-{days_left}"
+
+    return f'<span class="priority-badge" style="background-color:{color};">📅 {label}</span>'
+
+
+def _render_edit_expander(task) -> None:
+    """항목 아래 접이식 영역에서 마감일과 메모를 수정할 수 있게 합니다."""
+    # 메모가 있으면 제목에 미리보기를 살짝 보여줌
+    expander_label = "✏️ 마감일 / 메모"
+    if task.memo:
+        preview = task.memo if len(task.memo) <= 20 else task.memo[:20] + "..."
+        expander_label += f"  —  🗒️ {preview}"
+
+    with st.expander(expander_label):
+        current_due = date.fromisoformat(task.due_date) if task.due_date else None
+        edited_due = st.date_input(
+            "마감일",
+            value=current_due,
+            format="YYYY-MM-DD",
+            key=f"due_{task.id}",
+        )
+        edited_memo = st.text_area(
+            "메모",
+            value=task.memo,
+            placeholder="메모를 입력하세요...",
+            key=f"memo_{task.id}",
+        )
+
+        col_save, col_clear, _ = st.columns([1, 1, 2])
+        with col_save:
+            if st.button("💾 저장", key=f"save_{task.id}", use_container_width=True):
+                update_due_date(task.id, edited_due.isoformat() if edited_due else None)
+                update_memo(task.id, edited_memo)
+                st.rerun()
+        with col_clear:
+            # 마감일이 있을 때만 "제거" 버튼을 보여줌
+            if task.due_date and st.button(
+                "📅 마감일 제거", key=f"clear_due_{task.id}", use_container_width=True
+            ):
+                update_due_date(task.id, None)
+                st.rerun()
 
 
 def _render_task_item(task) -> None:
@@ -76,7 +157,12 @@ def _render_task_item(task) -> None:
 
     with col_title:
         pin_icon = "📌 " if task.pinned else ""
-        st.markdown(f"<span class='task-title'>{pin_icon}{task.title}</span>", unsafe_allow_html=True)
+        memo_icon = " 🗒️" if task.memo else ""
+        st.markdown(
+            f"<span class='task-title'>{pin_icon}{task.title}</span>"
+            f"{memo_icon} {_due_badge_html(task)}",
+            unsafe_allow_html=True,
+        )
 
     with col_priority:
         new_priority = st.selectbox(
@@ -101,6 +187,9 @@ def _render_task_item(task) -> None:
         if st.button("🗑️", key=f"delete_{task.id}"):
             delete_task(task.id)
             st.rerun()
+
+    # 항목 아래에 마감일/메모 수정 영역 표시
+    _render_edit_expander(task)
 
 
 def render_todo() -> None:

@@ -50,8 +50,8 @@ def render_dashboard() -> None:
 
     st.markdown("#### 📊 현재 현황")
 
-    # 4개의 지표 카드를 한 줄에 배치
-    col1, col2, col3, col4 = st.columns(4)
+    # 5개의 지표 카드를 한 줄에 배치
+    col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         _render_stat_card("Total Tasks", stats["total"])
     with col2:
@@ -60,6 +60,9 @@ def render_dashboard() -> None:
         _render_stat_card("Progress", f"{stats['progress']}%")
     with col4:
         _render_stat_card("High Priority", len(stats["high_priority"]))
+    with col5:
+        # 오늘 마감이거나 이미 지난 할 일 개수
+        _render_stat_card("Due Today", len(stats["due_today"]))
 
     st.markdown("<br>", unsafe_allow_html=True)
 

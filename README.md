@@ -6,8 +6,8 @@ JSON 파일 기반으로 데이터를 저장하며, 앱을 종료했다가 다�
 
 ## ✨ 프로젝트 소개
 
-- **Dashboard 탭**: 전체 할 일 현황(Total / Completed / Progress / High Priority)과 최근 완료 항목을 한눈에 확인
-- **Todo 탭**: 할 일 추가/검색/우선순위 변경/Pin 고정/삭제
+- **Dashboard 탭**: 전체 할 일 현황(Total / Completed / Progress / High Priority / Due Today)과 최근 완료 항목을 한눈에 확인
+- **Todo 탭**: 할 일 추가/검색/우선순위 변경/Pin 고정/삭제, 마감일(D-day 배지)과 메모 관리
 - **Completed 탭**: 완료된 할 일 확인, 복원(Restore), 삭제
 - **Dark / Light 테마**: 선택한 테마는 재실행 후에도 유지
 - 카드 레이아웃, 둥근 모서리, 그림자, hover 애니메이션 등 모던한 UI
@@ -87,6 +87,16 @@ my_dashboard/
 - High / Medium / Low 3단계, 색상으로 구분
 - 언제든지 변경 가능
 
+### Due Date (마감일)
+- 할 일 추가 시 또는 나중에 항목의 "✏️ 마감일 / 메모" 영역에서 설정
+- 목록에 D-day 배지 표시: 여유 있음(회색 D-N) / 오늘 마감(앰버 D-DAY) / 지남(빨강 N일 지남)
+- 같은 우선순위 안에서는 마감일이 빠른 항목이 위로 정렬
+- Dashboard에 "Due Today"(오늘 마감 + 지난 항목) 지표 카드 표시
+
+### Memo (메모)
+- 각 할 일에 상세 메모를 첨부 가능
+- 메모가 있는 항목은 제목 옆에 🗒️ 아이콘 표시, 접이식 영역에 미리보기 제공
+
 ### 테마
 - 사이드바에서 Light / Dark 모드 선택
 - 선택한 테마는 `data/settings.json`에 저장되어 재실행 후에도 유지
@@ -100,9 +110,8 @@ my_dashboard/
 아래 기능들을 쉽게 추가할 수 있도록 `core/models.py`(데이터 구조)와
 `core/task_manager.py`(로직)를 UI와 분리해두었습니다.
 
-- Due Date (마감일) 및 캘린더 뷰
+- 캘린더 뷰
 - Category (카테고리) 분류
-- Memo (메모) 기능
 - Recurring Task (반복 작업)
 - Notification (알림)
 - Excel Integration (엑셀 내보내기/가져오기)
