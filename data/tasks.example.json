@@ -1,0 +1,36 @@
+{
+  "tasks": [
+    {
+      "id": "example001",
+      "title": "예시 할 일 - LOT 진행 확인 요청",
+      "priority": "high",
+      "completed": false,
+      "pinned": false,
+      "created_at": "2026-01-01T09:00:00",
+      "completed_at": null,
+      "due_date": "2026-01-05",
+      "memo": "예시 메모입니다. 실제로는 이 필드에 상세 내용을 적습니다.",
+      "requester": "홍길동",
+      "lot": "LOT-2601-001",
+      "slot": "S12",
+      "request_date": "2026-01-02",
+      "order": 0
+    },
+    {
+      "id": "example002",
+      "title": "예시 할 일 - 완료된 항목",
+      "priority": "medium",
+      "completed": true,
+      "pinned": false,
+      "created_at": "2026-01-01T09:05:00",
+      "completed_at": "2026-01-02T14:30:00",
+      "due_date": null,
+      "memo": "",
+      "requester": "",
+      "lot": "",
+      "slot": "",
+      "request_date": null,
+      "order": 1
+    }
+  ]
+}

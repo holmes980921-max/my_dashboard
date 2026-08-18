@@ -14,7 +14,6 @@ from datetime import datetime, date
 from typing import Optional
 
 from config import (
-    PRIORITY_ORDER,
     RECENT_COMPLETED_COUNT,
     PRIORITY_HIGH,
     RECOMMEND_COUNT,
@@ -25,10 +24,45 @@ from core.models import Task
 from utils.storage import load_tasks, save_tasks
 
 
+def _backfill_missing_order(tasks: list) -> bool:
+    """
+    order가 아직 배정되지 않은(None) 할 일에 한해, created_at 순서대로
+    order 값을 새로 부여합니다. v1.0 이전 데이터를 위한 1회성 보정
+    로직입니다 - 이미 order가 있는 할 일은 절대 건드리지 않습니다.
+
+    반환값: 실제로 값을 채운 태스크가 하나라도 있으면 True (호출한 쪽에서
+    이 경우에만 파일에 다시 저장하면 됩니다).
+    """
+    missing = [t for t in tasks if t.order is None]
+    if not missing:
+        return False
+
+    existing_orders = [t.order for t in tasks if t.order is not None]
+    next_order = (max(existing_orders) + 1) if existing_orders else 0
+
+    # 순서가 없는 태스크끼리는 만들어진 시각(created_at) 순서를 그대로 유지합니다.
+    for t in sorted(missing, key=lambda t: t.created_at):
+        t.order = next_order
+        next_order += 1
+    return True
+
+
+def _next_order(tasks: list) -> int:
+    """새 할 일에 부여할 다음 순서 값을 계산합니다. (항상 목록 맨 아래로 추가됨)"""
+    orders = [t.order for t in tasks if t.order is not None]
+    return (max(orders) + 1) if orders else 0
+
+
 def get_all_tasks() -> list:
     """저장된 모든 할 일을 Task 객체 리스트로 불러옵니다."""
     raw_tasks = load_tasks()
-    return [Task.from_dict(t) for t in raw_tasks]
+    tasks = [Task.from_dict(t) for t in raw_tasks]
+
+    # v1.0 이전 데이터(순서 없음)를 만나면 한 번만 순서를 배정하고 저장합니다.
+    if _backfill_missing_order(tasks):
+        _persist(tasks)
+
+    return tasks
 
 
 def _persist(tasks: list) -> None:
@@ -41,11 +75,28 @@ def add_task(
     priority: str,
     due_date: Optional[str] = None,
     memo: str = "",
+    requester: str = "",
+    lot: str = "",
+    slot: str = "",
+    request_date: Optional[str] = None,
 ) -> None:
-    """새 할 일을 추가합니다. 마감일(YYYY-MM-DD)과 메모는 선택 사항입니다."""
+    """
+    새 할 일을 추가합니다. 마감일/메모/요청자/LOT/SLOT/요청일은 모두 선택
+    사항입니다. 새 할 일은 항상 수동 정렬 목록의 맨 아래에 추가됩니다.
+    """
     tasks = get_all_tasks()
     tasks.append(
-        Task(title=title.strip(), priority=priority, due_date=due_date, memo=memo.strip())
+        Task(
+            title=title.strip(),
+            priority=priority,
+            due_date=due_date,
+            memo=memo.strip(),
+            requester=requester.strip(),
+            lot=lot.strip(),
+            slot=slot.strip(),
+            request_date=request_date,
+            order=_next_order(tasks),
+        )
     )
     _persist(tasks)
 
@@ -110,6 +161,42 @@ def update_memo(task_id: str, memo: str) -> None:
     for t in tasks:
         if t.id == task_id:
             t.memo = memo.strip()
+    _persist(tasks)
+
+
+def update_requester(task_id: str, requester: str) -> None:
+    """할 일의 요청자를 변경합니다. 빈 문자열을 넣으면 제거됩니다."""
+    tasks = get_all_tasks()
+    for t in tasks:
+        if t.id == task_id:
+            t.requester = requester.strip()
+    _persist(tasks)
+
+
+def update_lot(task_id: str, lot: str) -> None:
+    """할 일의 LOT 번호를 변경합니다. 빈 문자열을 넣으면 제거됩니다."""
+    tasks = get_all_tasks()
+    for t in tasks:
+        if t.id == task_id:
+            t.lot = lot.strip()
+    _persist(tasks)
+
+
+def update_slot(task_id: str, slot: str) -> None:
+    """할 일의 SLOT 번호를 변경합니다. 빈 문자열을 넣으면 제거됩니다."""
+    tasks = get_all_tasks()
+    for t in tasks:
+        if t.id == task_id:
+            t.slot = slot.strip()
+    _persist(tasks)
+
+
+def update_request_date(task_id: str, request_date: Optional[str]) -> None:
+    """할 일의 요청일을 변경합니다. None을 넣으면 요청일이 제거됩니다."""
+    tasks = get_all_tasks()
+    for t in tasks:
+        if t.id == task_id:
+            t.request_date = request_date
     _persist(tasks)
 
 
@@ -194,23 +281,21 @@ def get_recommended_tasks(count: int = RECOMMEND_COUNT) -> list:
 
 def _sort_key(task: Task):
     """
-    Todo 목록 정렬 기준:
-    1) Pin 된 항목이 먼저 오도록
-    2) 그다음 우선순위(High > Medium > Low) 순서로
-    3) 같은 우선순위면 마감일이 빠른 항목이 먼저 오도록 (마감일 없으면 뒤로)
-    4) 마지막으로 먼저 생성된 항목이 먼저 오도록
+    Todo 목록 정렬 기준 (v1.0): 오직 사용자가 지정한 수동 순서(order)만 사용합니다.
+    우선순위나 Pin 여부로 자동 정렬하지 않습니다 - 우선순위는 배지 등으로
+    "정보"만 보여주고, 실제 목록 순서는 사용자가 직접 조정합니다.
+
+    order가 같은 값일 경우(정상적으로는 발생하지 않아야 하지만 방어적으로)
+    먼저 만들어진 항목이 앞에 오도록 created_at을 보조 기준으로 둡니다.
     """
-    priority_rank = PRIORITY_ORDER.index(task.priority) if task.priority in PRIORITY_ORDER else 99
-    # 마감일이 없는 항목은 "9999-12-31"로 취급해서 항상 뒤로 보냅니다
-    due = task.due_date or "9999-12-31"
-    return (not task.pinned, priority_rank, due, task.created_at)
+    return (task.order if task.order is not None else 0, task.created_at)
 
 
 def get_todo_tasks(search_keyword: str = "") -> list:
     """
     미완료 할 일 목록을 반환합니다.
     검색어가 있으면 제목에 검색어가 포함된 항목만 반환합니다.
-    Pin -> 우선순위 순으로 정렬되어 있습니다.
+    사용자가 지정한 수동 순서(order)대로 정렬되어 있습니다.
     """
     tasks = [t for t in get_all_tasks() if not t.completed]
 

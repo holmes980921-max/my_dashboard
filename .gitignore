@@ -5,3 +5,11 @@ __pycache__/
 # 가상환경 폴더 (혹시 만들 경우 대비)
 venv/
 .venv/
+
+# 실제 개인/업무 할 일 데이터 (v1.0) - 저장소에는 올리지 않습니다.
+# 예시 구조는 data/tasks.example.json 을 참고하세요.
+data/tasks.json
+data/today_list.json
+
+# Phase 1 진행 중 임시로 만든 백업 파일 (실제 서비스 파일 아님)
+data/*.backup_before_phase1

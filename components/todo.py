@@ -62,7 +62,7 @@ def _render_add_form() -> None:
             )
 
         if submitted:
-            error_message = validate_new_task(new_title, get_all_tasks())
+            error_message = validate_new_task(new_title)
             if error_message:
                 st.warning(error_message)
             else:

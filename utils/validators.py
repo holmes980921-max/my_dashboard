@@ -14,25 +14,16 @@ def is_blank(title: str) -> bool:
     return title is None or title.strip() == ""
 
 
-def is_duplicate_task(title: str, existing_tasks: list) -> bool:
-    """
-    이미 같은 제목의 할 일이 있는지 확인합니다.
-    앞뒤 공백은 무시하고, 대소문자도 구분하지 않습니다.
-    existing_tasks는 core.models.Task 객체 리스트입니다.
-    """
-    normalized_title = title.strip().lower()
-    return any(task.title.strip().lower() == normalized_title for task in existing_tasks)
-
-
-def validate_new_task(title: str, existing_tasks: list) -> Optional[str]:
+def validate_new_task(title: str) -> Optional[str]:
     """
     새 할 일 제목을 검증합니다.
     문제가 있으면 에러 메시지를 반환하고, 문제가 없으면 None을 반환합니다.
+
+    v1.0: 중복 제목 검사는 제거했습니다. 이메일 제목을 그대로 복사해서
+    쓰는 경우 등, 같은 제목이라도 LOT/SLOT이 다른 별개의 업무일 수 있기
+    때문입니다.
     """
     if is_blank(title):
         return "할 일 내용을 입력해주세요."
-
-    if is_duplicate_task(title, existing_tasks):
-        return "이미 존재하는 할 일입니다."
 
     return None
