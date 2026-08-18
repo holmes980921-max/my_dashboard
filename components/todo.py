@@ -21,6 +21,8 @@ from core.task_manager import (
     update_memo,
     get_todo_tasks,
     get_all_tasks,
+    move_task_up,
+    move_task_down,
 )
 from utils.validators import validate_new_task
 
@@ -120,11 +122,27 @@ def _render_edit_expander(task) -> None:
                 st.rerun()
 
 
-def _render_task_item(task) -> None:
-    """Todo 목록의 항목 하나(체크박스/제목/우선순위/Pin/삭제)를 그립니다."""
-    col_check, col_title, col_priority, col_pin, col_delete = st.columns(
-        [0.5, 3, 1.3, 0.6, 0.6]
+def _render_task_item(task, is_first: bool, is_last: bool) -> None:
+    """
+    Todo 목록의 항목 하나(순서 이동/체크박스/제목/우선순위/Pin/삭제)를 그립니다.
+
+    is_first/is_last: 검색어로 화면에 안 보이는 항목이 있어도, 항상 "전체
+    미완료 목록" 기준의 맨 위/맨 아래 여부입니다 (render_todo 참고) - 화면에
+    보이는 순서가 아니라 실제 저장된 전체 순서를 기준으로 이동하기 위함입니다.
+    """
+    col_order, col_check, col_title, col_priority, col_pin, col_delete = st.columns(
+        [0.5, 0.5, 2.8, 1.3, 0.6, 0.6]
     )
+
+    with col_order:
+        # ▲▼를 세로로 쌓아서 한 칸에 배치 - 컬럼을 더 늘리지 않고도
+        # 기존 화면 구조를 최대한 유지하기 위함입니다.
+        if st.button("▲", key=f"up_{task.id}", disabled=is_first, use_container_width=True):
+            move_task_up(task.id)
+            st.rerun()
+        if st.button("▼", key=f"down_{task.id}", disabled=is_last, use_container_width=True):
+            move_task_down(task.id)
+            st.rerun()
 
     with col_check:
         checked = st.checkbox("완료", key=f"check_{task.id}", label_visibility="collapsed")
@@ -190,6 +208,13 @@ def render_todo() -> None:
         st.info("할 일이 없습니다. 새로운 할 일을 추가해보세요!")
         return
 
+    # 검색어로 필터링되기 전, 전체 미완료 목록 안에서의 위치를 미리 계산합니다.
+    # 순서 이동(위/아래)의 맨 위/맨 아래 판정은 화면에 보이는 목록이 아니라
+    # 항상 이 전체 순서를 기준으로 해야 하기 때문입니다.
+    all_todo_ids = [t.id for t in get_todo_tasks()]
+    last_index = len(all_todo_ids) - 1
+
     for task in tasks:
+        position = all_todo_ids.index(task.id)
         with st.container(border=True):
-            _render_task_item(task)
+            _render_task_item(task, is_first=(position == 0), is_last=(position == last_index))

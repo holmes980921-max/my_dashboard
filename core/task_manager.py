@@ -306,6 +306,49 @@ def get_todo_tasks(search_keyword: str = "") -> list:
     return sorted(tasks, key=_sort_key)
 
 
+def _move_task(task_id: str, direction: int) -> None:
+    """
+    할 일의 순서를 미완료(Todo) 목록 안에서 한 칸 이동합니다.
+    direction=-1이면 위로, direction=+1이면 아래로 이동합니다.
+
+    구현 방식: 이동 대상과 그 바로 옆(위/아래) 미완료 할 일, 두 태스크의
+    order 값을 서로 맞바꿉니다. 이렇게 하면
+    - 완료된 할 일의 order는 전혀 건드리지 않고 (완료 목록과 무관),
+    - 두 값을 교환할 뿐이라 중복되거나 비어있는 order가 생기지 않고,
+    - 이동한 두 태스크 외에는 다른 어떤 데이터도 바뀌지 않습니다.
+
+    검색창에 검색어가 입력되어 있어도, "바로 옆"은 검색 결과가 아니라
+    전체 미완료 목록 기준입니다 - 화면에 보이지 않는 항목이라도 실제로는
+    바로 인접한 순서일 수 있습니다.
+    """
+    tasks = get_all_tasks()
+    todo_tasks = sorted([t for t in tasks if not t.completed], key=_sort_key)
+
+    index = next((i for i, t in enumerate(todo_tasks) if t.id == task_id), None)
+    if index is None:
+        return  # 이미 삭제되었거나 완료 처리된 할 일 - 아무 것도 하지 않습니다.
+
+    target_index = index + direction
+    if target_index < 0 or target_index >= len(todo_tasks):
+        return  # 맨 위/맨 아래라서 더 이상 이동할 수 없습니다.
+
+    current_task = todo_tasks[index]
+    target_task = todo_tasks[target_index]
+    current_task.order, target_task.order = target_task.order, current_task.order
+
+    _persist(tasks)
+
+
+def move_task_up(task_id: str) -> None:
+    """할 일을 미완료 목록에서 바로 위 항목과 순서를 맞바꿉니다."""
+    _move_task(task_id, -1)
+
+
+def move_task_down(task_id: str) -> None:
+    """할 일을 미완료 목록에서 바로 아래 항목과 순서를 맞바꿉니다."""
+    _move_task(task_id, 1)
+
+
 def get_completed_tasks() -> list:
     """완료된 할 일 목록을 최근 완료 순으로 반환합니다."""
     tasks = [t for t in get_all_tasks() if t.completed]
