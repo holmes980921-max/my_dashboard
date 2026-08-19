@@ -17,6 +17,7 @@ ASSETS_DIR = BASE_DIR / "assets"
 
 TASKS_FILE = DATA_DIR / "tasks.json"
 SETTINGS_FILE = DATA_DIR / "settings.json"
+TODAY_LIST_FILE = DATA_DIR / "today_list.json"
 STYLE_FILE = ASSETS_DIR / "style.css"
 
 # ----------------------------
@@ -54,11 +55,8 @@ DUE_COLORS = {
 }
 
 # ----------------------------
-# 오늘의 추천 (Recommendation) 설정
+# 오늘의 작업 (Today's Tasks) 추천 설정
 # ----------------------------
-# 대시보드에 보여줄 추천 할 일 개수
-RECOMMEND_COUNT = 3
-
 # 우선순위별 기본 점수 (중요할수록 높게)
 RECOMMEND_PRIORITY_SCORES = {
     PRIORITY_HIGH: 30,
@@ -66,8 +64,16 @@ RECOMMEND_PRIORITY_SCORES = {
     PRIORITY_LOW: 10,
 }
 
-# Pin 고정된 할 일에 주는 보너스 점수
-RECOMMEND_PIN_BONUS = 5
+# 자동 추천 개수의 "목표치" (소프트 타깃) - 지난/오늘 마감인 급한 할 일은
+# 이 개수를 넘더라도 전부 포함하고, 나머지 자리를 점수 순으로 채웁니다.
+TODAY_SOFT_TARGET = 5
+
+# 요청일(request_date)이 오래될수록 주는 가산점.
+# (기준 일수, 가산점) 목록 - 큰 기준부터 확인해서 한 번만 적용합니다.
+REQUEST_AGE_BONUS_THRESHOLDS = [
+    (14, 20),  # 요청한 지 14일 이상 지난 경우
+    (7, 10),   # 요청한 지 7일 이상 지난 경우
+]
 
 # ----------------------------
 # 테마(Theme) 설정

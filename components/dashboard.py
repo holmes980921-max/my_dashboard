@@ -2,14 +2,19 @@
 components/dashboard.py
 
 Dashboard 탭 화면을 그리는 파일입니다.
-전체 현황(Total/Completed/Progress/High Priority)과
-최근 완료된 작업을 카드 형태로 보여줍니다.
+전체 요약/통계를 한눈에 보여주는 자리이며, 실제 "오늘의 작업"을
+추천받고 직접 추가/제외하는 상호작용은 Today 탭(components/today.py)이
+담당합니다 - Dashboard는 읽기 전용 요약 정보에 집중합니다.
+
+v1.0: 메인 진행률(Progress)은 이제 "오늘의 작업" 기준입니다. 전체
+할 일 기준 완료율은 보조 정보로 캡션에 작게 표시합니다.
 """
 
 import streamlit as st
 
 from components.common import format_datetime, priority_badge_html, due_badge_html
-from core.task_manager import get_dashboard_stats, get_recommended_tasks
+from core.task_manager import get_dashboard_stats
+from core.today_manager import get_today_progress
 
 
 def _render_stat_card(label: str, value) -> None:
@@ -25,67 +30,33 @@ def _render_stat_card(label: str, value) -> None:
     )
 
 
-def _render_recommend_card(item: dict, rank: int) -> None:
-    """추천 할 일 카드 하나를 그립니다. (순위 메달 + 제목 + 배지 + 추천 이유)"""
-    task = item["task"]
-    rank_icons = ["🥇", "🥈", "🥉"]
-    icon = rank_icons[rank] if rank < len(rank_icons) else "⭐"
-
-    reasons = " · ".join(item["reasons"]) if item["reasons"] else "여유 있을 때 미리 해두세요"
-
-    st.markdown(
-        f"""
-        <div class="dashboard-card recommend-card">
-            <div>{icon} <span class="task-title">{task.title}</span></div>
-            <div style="margin: 0.4rem 0 0.3rem 0;">
-                {priority_badge_html(task.priority)}{due_badge_html(task)}
-            </div>
-            <div class="task-meta">💡 {reasons}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def _render_recommendations() -> None:
-    """'오늘의 추천' 섹션을 그립니다. 마감일 + 중요도 점수 상위 3개를 보여줍니다."""
-    st.markdown("#### 🎯 오늘의 추천")
-
-    recommended = get_recommended_tasks()
-
-    if not recommended:
-        st.info("추천할 할 일이 없습니다. Todo 탭에서 새 할 일을 추가해보세요!")
-        return
-
-    cols = st.columns(len(recommended))
-    for rank, (col, item) in enumerate(zip(cols, recommended)):
-        with col:
-            _render_recommend_card(item, rank)
-
-
 def render_dashboard() -> None:
     """Dashboard 탭 전체를 그립니다."""
     stats = get_dashboard_stats()
+    today_stats = get_today_progress()
 
-    # 오늘 뭐부터 할지 바로 보이도록 추천 섹션을 가장 위에 배치
-    _render_recommendations()
+    st.markdown("#### 📊 오늘의 현황")
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("#### 📊 현재 현황")
-
-    # 5개의 지표 카드를 한 줄에 배치
+    # 5개의 지표 카드를 한 줄에 배치 - 진행률은 "오늘의 작업" 기준입니다.
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
-        _render_stat_card("Total Tasks", stats["total"])
+        _render_stat_card("오늘의 작업", today_stats["total"])
     with col2:
-        _render_stat_card("Completed", stats["completed"])
+        _render_stat_card("오늘 완료", today_stats["completed"])
     with col3:
-        _render_stat_card("Progress", f"{stats['progress']}%")
+        _render_stat_card("오늘 진행률", f"{today_stats['progress']}%")
     with col4:
         _render_stat_card("High Priority", len(stats["high_priority"]))
     with col5:
-        # 오늘 마감이거나 이미 지난 할 일 개수
+        # 오늘 마감이거나 이미 지난 할 일 개수 (전체 기준)
         _render_stat_card("Due Today", len(stats["due_today"]))
+
+    # 전체 할 일 기준 완료율은 보조 정보로만 작게 표시 (요청사항: 클러터 방지)
+    st.caption(
+        f"전체 할 일 기준 진행률: {stats['progress']}% "
+        f"(총 {stats['total']}개 중 {stats['completed']}개 완료) · "
+        "오늘의 작업 추천/관리는 🎯 Today 탭에서 확인하세요."
+    )
 
     st.markdown("<br>", unsafe_allow_html=True)
 

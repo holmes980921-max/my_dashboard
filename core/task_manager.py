@@ -16,9 +16,8 @@ from typing import Optional
 from config import (
     RECENT_COMPLETED_COUNT,
     PRIORITY_HIGH,
-    RECOMMEND_COUNT,
     RECOMMEND_PRIORITY_SCORES,
-    RECOMMEND_PIN_BONUS,
+    REQUEST_AGE_BONUS_THRESHOLDS,
 )
 from core.models import Task
 from utils.storage import load_tasks, save_tasks
@@ -137,6 +136,15 @@ def toggle_pin(task_id: str) -> None:
     _persist(tasks)
 
 
+def update_title(task_id: str, title: str) -> None:
+    """할 일의 제목을 변경합니다."""
+    tasks = get_all_tasks()
+    for t in tasks:
+        if t.id == task_id:
+            t.title = title.strip()
+    _persist(tasks)
+
+
 def update_priority(task_id: str, priority: str) -> None:
     """할 일의 우선순위를 변경합니다."""
     tasks = get_all_tasks()
@@ -217,66 +225,54 @@ def get_days_left(task: Task) -> Optional[int]:
     return (due - date.today()).days
 
 
-def _recommend_score(task: Task) -> tuple:
+def get_request_age_days(task: Task) -> Optional[int]:
     """
-    할 일 하나의 '추천 점수'와 '추천 이유'를 계산합니다.
+    요청일(request_date)로부터 며칠이 지났는지 계산합니다.
+    요청일이 없으면 None을 반환합니다. (get_days_left와 반대 방향 - 마감일은
+    "얼마나 남았는지", 요청일은 "얼마나 오래됐는지"를 봅니다)
+    """
+    if not task.request_date:
+        return None
+    try:
+        requested = date.fromisoformat(task.request_date)
+    except ValueError:
+        return None
+    return (date.today() - requested).days
+
+
+def score_task_for_recommendation(task: Task) -> int:
+    """
+    할 일 하나의 '오늘의 작업 추천 점수'를 계산합니다. 점수가 높을수록
+    오늘 먼저 처리하면 좋은 할 일입니다. (core/today_manager.py에서 사용)
 
     점수 구성:
     - 우선순위 점수: High 30 / Medium 20 / Low 10
-    - 마감일 점수: 지남 +50, 오늘 +40, 1일 전 +30, 2일 전 +20, 3일 전 +10
-    - Pin 보너스: +5
+    - 마감 임박도: 지남 +50, 오늘 +40, 1일 전 +30, 2일 전 +20, 3일 전 +10
+    - 요청일이 오래된 경우 가산점: REQUEST_AGE_DAYS_THRESHOLDS 참고 (config.py)
 
     예) High 우선순위 + 오늘 마감 = 30 + 40 = 70점
     """
     score = RECOMMEND_PRIORITY_SCORES.get(task.priority, 0)
-    reasons = []
-
-    if task.priority == PRIORITY_HIGH:
-        reasons.append("우선순위 High")
 
     days_left = get_days_left(task)
     if days_left is not None:
         if days_left < 0:
             score += 50
-            reasons.append(f"마감 {-days_left}일 지남")
         elif days_left == 0:
             score += 40
-            reasons.append("오늘 마감")
         elif days_left <= 3:
             # D-1이면 +30, D-2면 +20, D-3이면 +10
             score += (4 - days_left) * 10
-            reasons.append(f"마감 {days_left}일 전")
 
-    if task.pinned:
-        score += RECOMMEND_PIN_BONUS
-        reasons.append("고정된 할 일")
+    request_age = get_request_age_days(task)
+    if request_age is not None:
+        # 임계값이 큰 것부터 확인해서, 한 번만 가산점을 더합니다 (중복 적용 방지).
+        for threshold, bonus in REQUEST_AGE_BONUS_THRESHOLDS:
+            if request_age >= threshold:
+                score += bonus
+                break
 
-    return score, reasons
-
-
-def get_recommended_tasks(count: int = RECOMMEND_COUNT) -> list:
-    """
-    '오늘 먼저 하면 좋은 할 일' 추천 목록을 반환합니다.
-    미완료 할 일을 점수순으로 정렬해서 상위 count개를 골라줍니다.
-
-    반환 형식: [{"task": Task, "score": 점수, "reasons": [이유 문자열들]}, ...]
-    """
-    todos = [t for t in get_all_tasks() if not t.completed]
-
-    scored = []
-    for t in todos:
-        score, reasons = _recommend_score(t)
-        scored.append({"task": t, "score": score, "reasons": reasons})
-
-    # 점수 높은 순 -> 마감일 빠른 순 -> 먼저 만든 순으로 정렬
-    scored.sort(
-        key=lambda item: (
-            -item["score"],
-            item["task"].due_date or "9999-12-31",
-            item["task"].created_at,
-        )
-    )
-    return scored[:count]
+    return score
 
 
 def _sort_key(task: Task):

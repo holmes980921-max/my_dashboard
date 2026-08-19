@@ -15,6 +15,7 @@ import streamlit as st
 from components.sidebar import render_sidebar
 from components.dashboard import render_dashboard
 from components.todo import render_todo
+from components.today import render_today
 from components.completed import render_completed
 from utils.theme import apply_theme
 
@@ -45,14 +46,19 @@ with col_date:
 
 st.markdown("---")
 
-# 5. 3개의 탭 구성
-tab_dashboard, tab_todo, tab_completed = st.tabs(["📊 Dashboard", "📝 Todo", "✅ Completed"])
+# 5. 4개의 탭 구성 (v1.0: Today 탭 추가)
+tab_dashboard, tab_todo, tab_today, tab_completed = st.tabs(
+    ["📊 Dashboard", "📝 Todo", "🎯 Today", "✅ Completed"]
+)
 
 with tab_dashboard:
     render_dashboard()
 
 with tab_todo:
     render_todo()
+
+with tab_today:
+    render_today()
 
 with tab_completed:
     render_completed()

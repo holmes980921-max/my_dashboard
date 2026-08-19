@@ -10,7 +10,7 @@ tasks.json, settings.json을 다루는 모든 코드는 이 파일을 거쳐갑�
 
 import json
 
-from config import TASKS_FILE, SETTINGS_FILE, DATA_DIR, DEFAULT_THEME
+from config import TASKS_FILE, SETTINGS_FILE, TODAY_LIST_FILE, DATA_DIR, DEFAULT_THEME
 
 
 def _ensure_data_dir() -> None:
@@ -66,3 +66,29 @@ def save_settings(settings: dict) -> None:
 
     with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
         json.dump(settings, f, ensure_ascii=False, indent=2)
+
+
+def load_today_list() -> dict:
+    """
+    today_list.json을 읽어서 반환합니다. ("date": "YYYY-MM-DD", "items": [...])
+    파일이 없으면 "아직 아무 날짜도 계산되지 않은" 빈 상태로 새로 만듭니다.
+    실제 할 일 정보는 들어있지 않고, task_id와 오늘 목록에서의 상태만
+    들어있습니다 - core/today_manager.py가 이 파일을 다룹니다.
+    """
+    _ensure_data_dir()
+
+    if not TODAY_LIST_FILE.exists():
+        empty = {"date": "", "items": []}
+        save_today_list(empty)
+        return empty
+
+    with open(TODAY_LIST_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_today_list(data: dict) -> None:
+    """오늘의 작업 상태(dict)를 today_list.json 파일에 저장합니다."""
+    _ensure_data_dir()
+
+    with open(TODAY_LIST_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
